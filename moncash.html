@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gagnez de l'argent avec YouTube</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            text-align: center;
+            padding: 20px;
+        }
+        .header {
+            background: #FF0000;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .channel-card {
+            background: white;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 400px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .subscribe-btn {
+            background: #FF0000;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .balance {
+            font-size: 18px;
+            margin-top: 20px;
+        }
+    </style>
+    <script src="https://apis.google.com/js/api.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>Gagnez de l'argent en vous abonnant à des chaînes YouTube</h1>
+        <p>Abonnez-vous et gagnez 0.01$ par abonnement</p>
+    </div>
+
+    <div id="authSection">
+        <button id="authButton" class="subscribe-btn" onclick="handleAuth()">Se connecter avec YouTube</button>
+    </div>
+
+    <div id="channelSection" style="display: none;">
+        <div class="channel-card">
+            <img id="channelThumbnail" width="100" style="border-radius: 50%;">
+            <h2 id="channelTitle"></h2>
+            <p>Abonnés: <span id="subscriberCount"></span></p>
+            <button id="subscribeButton" class="subscribe-btn" onclick="subscribeToChannel()">S'abonner (+0.01$)</button>
+        </div>
+    </div>
+
+    <div class="balance">
+        <p>Solde actuel : <strong><span id="balance">0.00$</span></strong></p>
+    </div>
+
+    <script>
+        const API_KEY = 'AIzaSyBIvIZ5BaJK2bxPwroC7tkuO3hJUmrPd2Y';
+        const CLIENT_ID = '924999365031-c8mju948aljl8a2g4ogup523gae89kvp.apps.googleusercontent.com';
+        const MRBEAST_CHANNEL_ID = 'UCX6OQ3DkcsbYNE6H8uQQuVA';
+
+        let user = null;
+        let balance = localStorage.getItem('balance') || 0;
+
+        function initClient() {
+            gapi.load('client:auth2', () => {
+                gapi.client.init({
+                    apiKey: API_KEY,
+                    clientId: CLIENT_ID,
+                    discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/youtube/v3/rest'],
+                    scope: 'https://www.googleapis.com/auth/youtube.force-ssl'
+                }).then(() => {
+                    console.log('API YouTube initialisée avec succès !');
+                }).catch(error => {
+                    console.error('Erreur d\'initialisation:', error);
+                });
+            });
+        }
+
+        async function handleAuth() {
+            try {
+                const auth = gapi.auth2.getAuthInstance();
+                user = await auth.signIn();
+                console.log('Utilisateur connecté:', user.getBasicProfile().getName());
+                
+                document.getElementById('authButton').style.display = 'none';
+                document.getElementById('channelSection').style.display = 'block';
+                
+                loadChannelInfo();
+            } catch (error) {
+                console.error('Erreur d\'authentification:', error);
+                alert('Échec de la connexion YouTube');
+            }
+        }
+
+        async function loadChannelInfo() {
+            try {
+                const response = await gapi.client.youtube.channels.list({
+                    part: 'snippet,statistics',
+                    id: MRBEAST_CHANNEL_ID
+                });
+                
+                const channel = response.result.items[0];
+                document.getElementById('channelThumbnail').src = channel.snippet.thumbnails.default.url;
+                document.getElementById('channelTitle').textContent = channel.snippet.title;
+                document.getElementById('subscriberCount').textContent = channel.statistics.subscriberCount;
+            } catch (error) {
+                console.error('Erreur de chargement des infos de la chaîne:', error);
+            }
+        }
+
+        async function subscribeToChannel() {
+            try {
+                const response = await gapi.client.youtube.subscriptions.insert({
+                    part: 'snippet',
+                    resource: {
+                        snippet: {
+                            resourceId: {
+                                channelId: MRBEAST_CHANNEL_ID,
+                                kind: 'youtube#channel'
+                            }
+                        }
+                    }
+                });
+                
+                balance = (Number(balance) + 0.01).toFixed(2);
+                localStorage.setItem('balance', balance);
+                document.getElementById('balance').textContent = `${balance}$`;
+                alert('Abonnement réussi ! Merci !');
+            } catch (error) {
+                console.error('Erreur d\'abonnement:', error);
+                alert('Erreur : Vous êtes peut-être déjà abonné.');
+            }
+        }
+
+        window.onload = initClient;
+    </script>
+</body>
+</html>
